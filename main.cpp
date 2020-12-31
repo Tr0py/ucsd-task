@@ -27,7 +27,7 @@ typedef std::vector<Bucket> Index;
 
 typedef svector<Peak> sSpectrum;
 //typedef std::map<SID, sSpectrum> QueryResult;
-typedef std::vector<sSpectrum> QueryResult;
+typedef std::vector<Spectrum> QueryResult;
 typedef std::vector<QueryResult> QueryResults;
 
 
@@ -143,7 +143,7 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 		int l2_first = 1;
 		for (SID sid=0; sid < queries_results.size(); sid++) { 
 
-			const sSpectrum &spectrum = queries_results[sid];
+			const Spectrum &spectrum = queries_results[sid];
 			if (spectrum.size() == 0) {
 				continue;
 			}
@@ -267,10 +267,11 @@ QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> 
 		const Spectrum &query = queries[iquery];
 		QueryResult *m = &((*query_results)[iquery]);
 		{
+//#pragma omp parallel for //schedule(dynamic, 4)
 			for (int i = 0; i < query.size(); i++) {
 				unsigned int mz = query[i].first;
 				for (int j = 0; j < (*index)[mz].size(); j++) {
-					BucketPeak bucket_peak = (*index)[mz][j];
+					BucketPeak &bucket_peak = (*index)[mz][j];
 					//printf("mz %u, bucket size = %lu, bucketpeak.first %d\n", mz, (*index)[mz].size(), bucket_peak.first);
 					//printf("i = %d, I am Thread %d\n", i, omp_get_thread_num());
 
