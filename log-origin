@@ -1,0 +1,108 @@
+./main data/804.mxs data/Query1.txt 804-Query1.json
+Found 1 candidates 
+Building the index took 11.4487 s
+Reconstruction took     0.703781 s
+./check.py 804-Query1.json  < data/804-Query1-ref.json
+loading stdin
+loading 804-Query1.json
+checking...
+Correct!
+./main data/804.mxs data/Query5.txt 804-Query5.json
+Found 5 candidates 
+Building the index took 11.447 s
+Reconstruction took     2.82844 s
+./check.py 804-Query5.json  < data/804-Query5-ref.json
+loading stdin
+loading 804-Query5.json
+checking...
+Correct!
+./main data/804.mxs data/Query1.txt 804-Query1.json
+Found 1 candidates 
+Building the index took 11.4631 s
+Reconstruction took     0.697716 s
+./check.py 804-Query1.json  < data/804-Query1-ref.json
+loading stdin
+loading 804-Query1.json
+checking...
+Correct!
+./main data/804.mxs data/Query5.txt 804-Query5.json
+Found 5 candidates 
+Building the index took 11.429 s
+Reconstruction took     2.86793 s
+./check.py 804-Query5.json  < data/804-Query5-ref.json
+loading stdin
+loading 804-Query5.json
+checking...
+Correct!
+./main data/804.mxs data/Query1.txt 804-Query1.json
+Found 1 candidates 
+Building the index took 11.4697 s
+Reconstruction took     0.694342 s
+./check.py 804-Query1.json  < data/804-Query1-ref.json
+loading stdin
+loading 804-Query1.json
+checking...
+Correct!
+./main data/804.mxs data/Query5.txt 804-Query5.json
+Found 5 candidates 
+Building the index took 11.4762 s
+Reconstruction took     2.84815 s
+./check.py 804-Query5.json  < data/804-Query5-ref.json
+loading stdin
+loading 804-Query5.json
+checking...
+Correct!
+./main data/804.mxs data/Query1.txt 804-Query1.json
+Found 1 candidates 
+Building the index took 11.436 s
+Reconstruction took     0.698294 s
+./check.py 804-Query1.json  < data/804-Query1-ref.json
+loading stdin
+loading 804-Query1.json
+checking...
+Correct!
+./main data/804.mxs data/Query5.txt 804-Query5.json
+Found 5 candidates 
+Building the index took 11.4618 s
+Reconstruction took     2.84443 s
+./check.py 804-Query5.json  < data/804-Query5-ref.json
+loading stdin
+loading 804-Query5.json
+checking...
+Correct!
+./main data/804.mxs data/Query1.txt 804-Query1.json
+Found 1 candidates 
+Building the index took 11.4338 s
+Reconstruction took     0.69828 s
+./check.py 804-Query1.json  < data/804-Query1-ref.json
+loading stdin
+loading 804-Query1.json
+checking...
+Correct!
+./main data/804.mxs data/Query5.txt 804-Query5.json
+Found 5 candidates 
+Building the index took 11.419 s
+Reconstruction took     2.83921 s
+./check.py 804-Query5.json  < data/804-Query5-ref.json
+loading stdin
+loading 804-Query5.json
+checking...
+Correct!
+./main data/804.mxs data/Query1.txt 804-Query1.json
+Found 1 candidates 
+Building the index took 11.4659 s
+Reconstruction took     0.709477 s
+./check.py 804-Query1.json  < data/804-Query1-ref.json
+loading stdin
+loading 804-Query1.json
+checking...
+Correct!
+./main data/804.mxs data/Query5.txt 804-Query5.json
+Found 5 candidates 
+Building the index took 11.4342 s
+Reconstruction took     2.84972 s
+./check.py 804-Query5.json  < data/804-Query5-ref.json
+loading stdin
+loading 804-Query5.json
+checking...
+Correct!

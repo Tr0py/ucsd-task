@@ -5,3 +5,9 @@ task.pdf
 *.json
 main
 
+dis-main
+peda-session-main.txt
+perf.data
+perf.data.old
+tags
+
