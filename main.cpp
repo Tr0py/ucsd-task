@@ -27,6 +27,7 @@ typedef std::vector<Bucket> Index;
 
 typedef svector<Peak> sSpectrum;
 typedef std::map<SID, Spectrum> QueryResult;
+typedef std::vector<QueryResult*> QueryResults;
 
 
 static const MZ MAX_MZ = 20000;
@@ -120,7 +121,7 @@ void dump_index(Index *index) {
 }
 
 
-void json_reconstruction(char * file, const std::vector<QueryResult> &reconstructed_spectra) {
+void json_reconstruction(char * file, const QueryResults &reconstructed_spectra) {
 
 	std::ofstream out(file, std::ios::out);
 	
@@ -129,20 +130,32 @@ void json_reconstruction(char * file, const std::vector<QueryResult> &reconstruc
 	out << "[\n";
 	//for(const auto & queries_results: reconstructed_spectra) {
 	int spectrum_max_size = 0;
+		int first = 1;
 	for (int i=0; i<reconstructed_spectra.size(); i++) {
-		const QueryResult &queries_results = reconstructed_spectra[i];
+		const QueryResult &queries_results = *(reconstructed_spectra[i]);
+		if (first == 0) {
+			out << ",";
+		}
 		out << "[\n";
 		for(const auto &[sid, spectrum]:queries_results) {
 			
 			out << "\t{ " << "";
 			out << "\"" << sid << "\": " << "[\n";
-			//printf("spectrum len: %lu\n", spectrum.size());
+			//printf("spectrum len: %d\n", spectrum.size());
 			if (spectrum.size() >  spectrum_max_size) spectrum_max_size = spectrum.size();
-			for (auto j = spectrum.begin(); j != spectrum.end(); j++) {
+			//for (auto j = spectrum.begin(); j != spectrum.end(); j++) {
+			for (int j=0; j<spectrum.size(); j++) {
+				const Peak &peak = spectrum[j];
+				out << "\t\t\t[ " << peak.first << ", " << peak.second << " ]";
+				if (j != spectrum.size()-1) {
+					out<<  ",";
+				}
+				/*
 				out << "\t\t\t[ " << j->first << ", " << j->second << " ]";
 				if (std::next(j) != spectrum.end()) {
 					out<<  ",";
 				}
+				*/
 				out << "\n";
 			}
 			out << "\t\t]\n";
@@ -156,9 +169,12 @@ void json_reconstruction(char * file, const std::vector<QueryResult> &reconstruc
 		}
 		out << "]";
 		// Printf ',' after []   except the last one.
+		/*
 		if (&queries_results != &*reconstructed_spectra.rbegin()) {
 			out << ",";
 		}
+		*/
+		first = 0;
 		out << "\n";
 	}
 	out << "]\n";
@@ -234,12 +250,16 @@ Index * build_index(RawData * data) {
 	return index;
 }
 
-std::vector<QueryResult> *reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries) {
+QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries) {
 
-	auto reconstructed_spectra = new std::vector<QueryResult>;
+	QueryResults *reconstructed_spectra = new QueryResults(queries.size());
 
-	for(auto & query: queries) {
-		QueryResult m;
+	//for(auto & query: queries) {
+	for (int iquery=0; iquery<queries.size(); iquery++) {
+		const Spectrum &query = queries[iquery];
+
+		QueryResult *pm = new QueryResult;
+		QueryResult &m = *pm;
 		{
 //#pragma omp parallel for
 			for (int i = 0; i < query.size(); i++) {
@@ -254,7 +274,11 @@ std::vector<QueryResult> *reconstruct_candidates(Index * index, const std::vecto
 				}
 			}
 		}
-		reconstructed_spectra->push_back(m);
+		// Don't do this! It's slow!
+		//reconstructed_spectra->push_back(m);
+		
+		(*reconstructed_spectra)[iquery] = pm;
+		//printf("just push back %d\n", reconstructed_spectra[0][1][0][1].first);
 	}
 
 	return reconstructed_spectra;
