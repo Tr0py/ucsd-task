@@ -1,5 +1,7 @@
 #include <string.h>
 #include <assert.h>
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
 template <class T>
 class svector {
 public:
@@ -7,7 +9,8 @@ public:
 	int _size;
 	int tail;
 	svector() {
-		int size = 50;
+		//TODO: profile size 90% 50%
+		int size = 5;
 		data = new T[size * sizeof(T)];
 		this->_size = size;
 		tail = 0;
@@ -29,9 +32,17 @@ public:
 	~svector() {
 		delete[] data;
 	};
-	//TODO: T& ele
 	void push_back(const T& ele) {
 		int old_tail = __sync_fetch_and_add(&tail, 1);
+		if (unlikely(old_tail == _size - 2)) {
+			T* old_data = data;
+			data = new T[_size+5 * sizeof(T)];
+			memcpy(data, old_data, sizeof(T) * tail);
+			_size += 5;
+			delete[] old_data;
+		}
+		/* waiting for alloc */
+		while (unlikely(old_tail >= _size)) ;
 		data[old_tail] = ele;
 		//data[tail++] = ele;
 	}

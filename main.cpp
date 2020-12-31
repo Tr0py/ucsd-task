@@ -26,7 +26,8 @@ typedef std::vector<BucketPeak> Bucket;
 typedef std::vector<Bucket> Index;
 
 typedef svector<Peak> sSpectrum;
-typedef std::map<SID, sSpectrum> QueryResult;
+//typedef std::map<SID, sSpectrum> QueryResult;
+typedef std::vector<sSpectrum> QueryResult;
 typedef std::vector<QueryResult> QueryResults;
 
 
@@ -138,7 +139,17 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 			out << ",";
 		}
 		out << "[\n";
-		for(const auto &[sid, spectrum]:queries_results) {
+		//for(const auto &[sid, spectrum]:queries_results) {
+		int l2_first = 1;
+		for (SID sid=0; sid < queries_results.size(); sid++) { 
+
+			const sSpectrum &spectrum = queries_results[sid];
+			if (spectrum.size() == 0) {
+				continue;
+			}
+			if (!l2_first) {
+				out << ",";
+			}
 			
 			out << "\t{ " << "";
 			out << "\"" << sid << "\": " << "[\n";
@@ -162,10 +173,12 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 			out << "\t\t]\n";
 			out << "\t}";
 			
+			/*
 			if (&sid != &queries_results.rbegin()->first) {
 				out << ",";
 			}
-
+			*/
+			l2_first = 0;
 			out << "\n";
 		}
 		out << "]";
@@ -247,10 +260,11 @@ Index * build_index(RawData * data) {
 
 QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries, QueryResults* query_results) {
 
-#pragma omp parallel for
+	//omp_set_dynamic(0);     // Explicitly disable dynamic teams
+	//omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
+#pragma omp parallel for schedule(dynamic, 1)
 	for (int iquery=0; iquery<queries.size(); iquery++) {
 		const Spectrum &query = queries[iquery];
-
 		QueryResult *m = &((*query_results)[iquery]);
 		{
 			for (int i = 0; i < query.size(); i++) {
@@ -273,12 +287,14 @@ QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> 
 QueryResults* init_query_results(unsigned int size)
 {
 	QueryResults *qr = new QueryResults(size);
-	//for (auto map : (*qr)) {
-	//}
+	for (int i=0; i < size; i++) {
+		(*qr)[i].resize(800000); 
+	}
 	return qr;
 }
 
-int main(int argc, char * argv[]) {
+int main(int argc, char * argv[]) 
+{
 
 	if (argc != 4) {
 		std::cerr << "Usage: main <raw data file> <query file> <output json>\n";
