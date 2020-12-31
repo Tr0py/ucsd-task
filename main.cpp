@@ -26,7 +26,7 @@ typedef std::vector<BucketPeak> Bucket;
 typedef std::vector<Bucket> Index;
 
 typedef svector<Peak> sSpectrum;
-typedef std::map<SID, Spectrum> QueryResult;
+typedef std::map<SID, sSpectrum> QueryResult;
 typedef std::vector<QueryResult> QueryResults;
 
 
