@@ -247,7 +247,7 @@ Index * build_index(RawData * data) {
 
 QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries, QueryResults* query_results) {
 
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (int iquery=0; iquery<queries.size(); iquery++) {
 		const Spectrum &query = queries[iquery];
 
