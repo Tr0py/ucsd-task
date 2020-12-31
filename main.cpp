@@ -27,7 +27,7 @@ typedef std::vector<Bucket> Index;
 
 typedef svector<Peak> sSpectrum;
 typedef std::map<SID, Spectrum> QueryResult;
-typedef std::vector<QueryResult*> QueryResults;
+typedef std::vector<QueryResult> QueryResults;
 
 
 static const MZ MAX_MZ = 20000;
@@ -132,7 +132,8 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 	int spectrum_max_size = 0;
 		int first = 1;
 	for (int i=0; i<reconstructed_spectra.size(); i++) {
-		const QueryResult &queries_results = *(reconstructed_spectra[i]);
+		const QueryResult &queries_results = (reconstructed_spectra[i]);
+		// Printf ',' before []   except the first one.
 		if (first == 0) {
 			out << ",";
 		}
@@ -168,12 +169,6 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 			out << "\n";
 		}
 		out << "]";
-		// Printf ',' after []   except the last one.
-		/*
-		if (&queries_results != &*reconstructed_spectra.rbegin()) {
-			out << ",";
-		}
-		*/
 		first = 0;
 		out << "\n";
 	}
@@ -250,18 +245,14 @@ Index * build_index(RawData * data) {
 	return index;
 }
 
-QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries) {
+QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries, QueryResults* query_results) {
 
-	QueryResults *reconstructed_spectra = new QueryResults(queries.size());
-
-	//for(auto & query: queries) {
+//#pragma omp parallel for
 	for (int iquery=0; iquery<queries.size(); iquery++) {
 		const Spectrum &query = queries[iquery];
 
-		QueryResult *pm = new QueryResult;
-		QueryResult &m = *pm;
+		QueryResult *m = &((*query_results)[iquery]);
 		{
-//#pragma omp parallel for
 			for (int i = 0; i < query.size(); i++) {
 				unsigned int mz = query[i].first;
 				for (int j = 0; j < (*index)[mz].size(); j++) {
@@ -270,20 +261,22 @@ QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> 
 					//printf("i = %d, I am Thread %d\n", i, omp_get_thread_num());
 
 //#pragma omp critical
-					m[bucket_peak.first].push_back(Peak(mz, bucket_peak.second));
+					(*m)[bucket_peak.first].push_back(Peak(mz, bucket_peak.second));
 				}
 			}
 		}
-		// Don't do this! It's slow!
-		//reconstructed_spectra->push_back(m);
-		
-		(*reconstructed_spectra)[iquery] = pm;
-		//printf("just push back %d\n", reconstructed_spectra[0][1][0][1].first);
 	}
 
-	return reconstructed_spectra;
+	return query_results;
 }
 
+QueryResults* init_query_results(unsigned int size)
+{
+	QueryResults *qr = new QueryResults(size);
+	//for (auto map : (*qr)) {
+	//}
+	return qr;
+}
 
 int main(int argc, char * argv[]) {
 
@@ -307,6 +300,7 @@ int main(int argc, char * argv[]) {
 	int num_peaks = 0;
 
 	bool demo = false;
+	QueryResults *q_res;
 	
 	if (std::getenv("DEMO")) {
 		total_spectra = 3;
@@ -319,6 +313,9 @@ int main(int argc, char * argv[]) {
 	//dump_raw_data(raw_data);
 	
 	std::vector<Spectrum> *queries = load_queries(argv[2]);
+	q_res = init_query_results(queries->size());
+
+
 	if (demo) {
 		std::cerr << "queries=\n";
 		for(auto &s: *queries) {
@@ -342,7 +339,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	auto reconstruct_start = std::chrono::high_resolution_clock::now();
-	auto reconstructed_spectra = reconstruct_candidates(index, *queries);
+	auto reconstructed_spectra = reconstruct_candidates(index, *queries, q_res);
 	auto reconstruct_end = std::chrono::high_resolution_clock::now();	
 	json_reconstruction(argv[3], *reconstructed_spectra);
 

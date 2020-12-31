@@ -25,7 +25,7 @@ public:
 		delete[] data;
 	};
 	//TODO: T& ele
-	void push_back(T ele) {
+	void push_back(const T& ele) {
 		int old_tail = __sync_fetch_and_add(&tail, 1);
 		data[old_tail] = ele;
 	}
