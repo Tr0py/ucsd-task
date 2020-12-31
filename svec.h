@@ -12,6 +12,11 @@ public:
 		this->_size = size;
 		tail = 0;
 	}
+	svector(int size) {
+		data = new T[size * sizeof(T)];
+		this->_size = size;
+		tail = 0;
+	}
 	svector(const svector<T>& cp) {
 		// Don't do this! It's slow!
 		assert(0);
@@ -28,6 +33,7 @@ public:
 	void push_back(const T& ele) {
 		int old_tail = __sync_fetch_and_add(&tail, 1);
 		data[old_tail] = ele;
+		//data[tail++] = ele;
 	}
 	T& operator[](int idx) const {
 		return data[idx];

@@ -3,20 +3,11 @@
 import json
 import sys
 
-def ordered(obj):
-    if isinstance(obj, dict):
-        return sorted((k, ordered(v)) for k, v in obj.items())
-    if isinstance(obj, list):
-        return sorted(ordered(x) for x in obj)
-    else:
-        return obj
-
 print("loading stdin")
 data = json.load(sys.stdin)
 print(f"loading {sys.argv[1]}")
 reference = json.load(open(sys.argv[1]))
 print("checking...")
-#if ordered(data) != ordered(reference):
 if data != reference:
     print("Result does not match reference.")
     #print(f"reference={reference}")
