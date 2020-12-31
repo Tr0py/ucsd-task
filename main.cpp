@@ -6,6 +6,8 @@
 #include<chrono>
 #include<fstream>
 #include <sstream>
+#include <omp.h>
+#include "svec.h"
 
 typedef unsigned int SID;
 typedef unsigned int Intensity;
@@ -15,11 +17,17 @@ typedef std::pair<MZ, Intensity> Peak;
 typedef std::vector<Peak> Spectrum;
 typedef std::vector<Spectrum> RawData;
 
+/* thread safe */
+
 typedef std::pair<SID, Intensity> BucketPeak;
 
 typedef std::vector<BucketPeak> Bucket;
 
 typedef std::vector<Bucket> Index;
+
+typedef svector<Peak> sSpectrum;
+typedef std::map<SID, Spectrum> QueryResult;
+
 
 static const MZ MAX_MZ = 20000;
 static const int num_buckets = 1; //# of bins per mz used for index
@@ -75,22 +83,30 @@ RawData * load_raw_data(char *file, int &total_spectra, int &num_peaks) {
 }
 
 void dump_spectrum(Spectrum *s) {
+	int mz_count = 0, mz_max = 0;
 	std::cerr << "[";
 	for(auto & p: *s) {
 		std::cerr << "[" << p.first << ", " << p.second << "],";
+		mz_count++;
+		if (p.first > mz_max) mz_max = p.first;
 	}
 	std::cerr << "]";
+	printf("\nMZ count: %d, max: %d\n", mz_count, mz_max);
 }
 
 void dump_raw_data(RawData* r) {
 
+	int sid_count = 0, sid_max = 0;
 	int c = 0;
 	for(auto & s: *r) {
 		std::cerr << "SID=" << c;
+		sid_count++;
+		if (c > sid_max) sid_max = c;
 		dump_spectrum(&s);
 		c++;
 		std::cerr << "\n";
 	}
+	//printf("SID count: %d, max: %d\n", sid_count, sid_max);
 }
 
 void dump_index(Index *index) {
@@ -104,19 +120,24 @@ void dump_index(Index *index) {
 }
 
 
-void json_reconstruction(char * file, const std::vector<std::map<SID, Spectrum>> &reconstructed_spectra) {
+void json_reconstruction(char * file, const std::vector<QueryResult> &reconstructed_spectra) {
 
 	std::ofstream out(file, std::ios::out);
 	
 
 	//auto end = reconstructed_spectra.end();
 	out << "[\n";
-	for(const auto & queries_results: reconstructed_spectra) {
+	//for(const auto & queries_results: reconstructed_spectra) {
+	int spectrum_max_size = 0;
+	for (int i=0; i<reconstructed_spectra.size(); i++) {
+		const QueryResult &queries_results = reconstructed_spectra[i];
 		out << "[\n";
 		for(const auto &[sid, spectrum]:queries_results) {
 			
 			out << "\t{ " << "";
 			out << "\"" << sid << "\": " << "[\n";
+			//printf("spectrum len: %lu\n", spectrum.size());
+			if (spectrum.size() >  spectrum_max_size) spectrum_max_size = spectrum.size();
 			for (auto j = spectrum.begin(); j != spectrum.end(); j++) {
 				out << "\t\t\t[ " << j->first << ", " << j->second << " ]";
 				if (std::next(j) != spectrum.end()) {
@@ -134,12 +155,14 @@ void json_reconstruction(char * file, const std::vector<std::map<SID, Spectrum>>
 			out << "\n";
 		}
 		out << "]";
+		// Printf ',' after []   except the last one.
 		if (&queries_results != &*reconstructed_spectra.rbegin()) {
 			out << ",";
 		}
 		out << "\n";
 	}
 	out << "]\n";
+	printf("spectrum_max_size: %d\n", spectrum_max_size);
 }
 
 
@@ -192,14 +215,17 @@ Index * build_index(RawData * data) {
 
 	unsigned int unit_frag;
 
+	int min_mz = 20000;
 	for(SID sid = 0; sid < data->size(); sid++) {
 		for(auto & peak: (*data)[sid]) {
 			unit_frag = peak.first/num_buckets;
 			if (unit_frag < MAX_MZ) {
 				(*index)[unit_frag].push_back(BucketPeak(sid, peak.second));
+				if (peak.first < min_mz) min_mz = peak.first;
 			}
 		}
 	}
+	printf("min_mz %d\n", min_mz);
 
 	for(MZ mz = 0; mz < MAX_MZ; mz++) {
 		std::sort((*index)[mz].begin(), (*index)[mz].end());
@@ -208,16 +234,24 @@ Index * build_index(RawData * data) {
 	return index;
 }
 
-std::vector<std::map<SID, Spectrum>> *reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries) {
+std::vector<QueryResult> *reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries) {
 
-	auto reconstructed_spectra = new std::vector<std::map<SID, Spectrum>>;
+	auto reconstructed_spectra = new std::vector<QueryResult>;
 
 	for(auto & query: queries) {
-		std::map<SID, Spectrum> m;
-		for(auto & query_peak: query) {
-			unsigned int unit_q_mz = query_peak.first / num_buckets;
-			for(auto & bucket_peak : (*index)[unit_q_mz]) {
-				m[bucket_peak.first].push_back(Peak(query_peak.first, bucket_peak.second));
+		QueryResult m;
+		{
+//#pragma omp parallel for
+			for (int i = 0; i < query.size(); i++) {
+				unsigned int mz = query[i].first;
+				for (int j = 0; j < (*index)[mz].size(); j++) {
+					BucketPeak bucket_peak = (*index)[mz][j];
+					//printf("mz %u, bucket size = %lu, bucketpeak.first %d\n", mz, (*index)[mz].size(), bucket_peak.first);
+					//printf("i = %d, I am Thread %d\n", i, omp_get_thread_num());
+
+//#pragma omp critical
+					m[bucket_peak.first].push_back(Peak(mz, bucket_peak.second));
+				}
 			}
 		}
 		reconstructed_spectra->push_back(m);
