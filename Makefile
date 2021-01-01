@@ -1,7 +1,7 @@
 
 #CXX=clang++
 CXX=g++
-CXXFLAGS=-std=gnu++17 -g  -fopenmp -Wall -O4
+CXXFLAGS=-std=gnu++17 -fopenmp -Wall -O4
 TIME= 
 #TIME=/usr/bin/time -v 
 
