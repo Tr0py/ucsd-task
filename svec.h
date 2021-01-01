@@ -1,16 +1,17 @@
 #include <string.h>
 #include <assert.h>
+#include "config.h"
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 template <class T>
 class svector {
 public:
 	T *data;
-	int _size;
+	volatile int _size;
 	int tail;
 	svector() {
 		//TODO: profile size 90% 50%
-		int size = 5;
+		int size = SVEC_INIT_SIZE;
 		data = new T[size * sizeof(T)];
 		this->_size = size;
 		tail = 0;
@@ -34,10 +35,11 @@ public:
 	};
 	void push_back(const T& ele) {
 		int old_tail = __sync_fetch_and_add(&tail, 1);
-		if (unlikely(old_tail == _size - 2)) {
+		if (unlikely(old_tail == _size)) {
 			T* old_data = data;
 			data = new T[_size+5 * sizeof(T)];
-			memcpy(data, old_data, sizeof(T) * tail);
+			memcpy(data, old_data, sizeof(T) * _size);
+			asm volatile("": : :"memory");
 			_size += 5;
 			delete[] old_data;
 		}

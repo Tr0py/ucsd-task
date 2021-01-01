@@ -8,6 +8,7 @@
 #include <sstream>
 #include <omp.h>
 #include "svec.h"
+#include "config.h"
 
 typedef unsigned int SID;
 typedef unsigned int Intensity;
@@ -27,7 +28,11 @@ typedef std::vector<Bucket> Index;
 
 typedef svector<Peak> sSpectrum;
 //typedef std::map<SID, sSpectrum> QueryResult;
+#if USE_SVEC == 1
+typedef std::vector<sSpectrum> QueryResult;
+#else
 typedef std::vector<Spectrum> QueryResult;
+#endif
 typedef std::vector<QueryResult> QueryResults;
 
 
@@ -49,7 +54,7 @@ RawData * load_raw_data(char *file, int &total_spectra, int &num_peaks) {
 	if (total_spectra == 0){
 		total_spectra = num_spectra;
 	}
-    
+
 	if (num_spectra > 0) {
 		position[0].first = num_spectra + 2; //starting offset in the file of the first spectrum
 		in.read((char *) &position[0].second, sizeof(unsigned int)); //ending position of the first spectrum
@@ -125,13 +130,13 @@ void dump_index(Index *index) {
 void json_reconstruction(char * file, const QueryResults &reconstructed_spectra) {
 
 	std::ofstream out(file, std::ios::out);
-	
+
 
 	//auto end = reconstructed_spectra.end();
 	out << "[\n";
 	//for(const auto & queries_results: reconstructed_spectra) {
 	int spectrum_max_size = 0;
-		int first = 1;
+	int first = 1;
 	for (int i=0; i<reconstructed_spectra.size(); i++) {
 		const QueryResult &queries_results = (reconstructed_spectra[i]);
 		// Printf ',' before []   except the first one.
@@ -143,14 +148,18 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 		int l2_first = 1;
 		for (SID sid=0; sid < queries_results.size(); sid++) { 
 
+#if USE_SVEC == 1
+			const sSpectrum &spectrum = queries_results[sid];
+#else
 			const Spectrum &spectrum = queries_results[sid];
+#endif
 			if (spectrum.size() == 0) {
 				continue;
 			}
 			if (!l2_first) {
 				out << ",";
 			}
-			
+
 			out << "\t{ " << "";
 			out << "\"" << sid << "\": " << "[\n";
 			//printf("spectrum len: %d\n", spectrum.size());
@@ -163,126 +172,153 @@ void json_reconstruction(char * file, const QueryResults &reconstructed_spectra)
 					out<<  ",";
 				}
 				/*
-				out << "\t\t\t[ " << j->first << ", " << j->second << " ]";
-				if (std::next(j) != spectrum.end()) {
-					out<<  ",";
-				}
-				*/
+				   out << "\t\t\t[ " << j->first << ", " << j->second << " ]";
+				   if (std::next(j) != spectrum.end()) {
+				   out<<  ",";
+				   }
+				   */
 				out << "\n";
 			}
 			out << "\t\t]\n";
 			out << "\t}";
-			
+
 			/*
-			if (&sid != &queries_results.rbegin()->first) {
-				out << ",";
-			}
-			*/
+			   if (&sid != &queries_results.rbegin()->first) {
+			   out << ",";
+			   }
+			   */
 			l2_first = 0;
 			out << "\n";
 		}
 		out << "]";
 		first = 0;
 		out << "\n";
-	}
-	out << "]\n";
-	printf("spectrum_max_size: %d\n", spectrum_max_size);
-}
-
-
-Spectrum * load_query(char*file) {
-	Spectrum *n = new Spectrum;
-	std::ifstream in(file);
-	std::string line;
-
-	while (std::getline(in, line)) {
-		std::vector<unsigned int> lineData;
-		std::stringstream lineStream(line);
-		unsigned int value;
-		while (lineStream >> value) {
-			lineData.push_back(value);
 		}
-		n->push_back(Peak(lineData[0], lineData[1]));
-	}
-	return n;
-}
-
-std::vector<Spectrum> * load_queries(char*file) {
-	auto n = new std::vector<Spectrum>;
-	
-	std::ifstream in(file);
-	std::string line;
-
-	int spectra_count = 0;
-	in >> spectra_count;
-	for(int i = 0; i < spectra_count; i++) {
-		Spectrum s;
-		int peak_count;
-		in >> peak_count;
-		for (int p = 0; p < peak_count; p++) {
-			MZ mz;
-			Intensity intensity;
-			in >> mz >> intensity;
-			s.push_back(Peak(mz, intensity));
-		}
-		n->push_back(s);
-	}
-	return n;
-}
-
-Index * build_index(RawData * data) {
-	Index *index = new Index;
-
-	for(MZ mz = 0; mz < MAX_MZ; mz++) {
-		index->push_back(Bucket());
+		out << "]\n";
+		printf("spectrum_max_size: %d\n", spectrum_max_size);
 	}
 
-	unsigned int unit_frag;
 
-	int min_mz = 20000;
-	for(SID sid = 0; sid < data->size(); sid++) {
-		for(auto & peak: (*data)[sid]) {
-			unit_frag = peak.first/num_buckets;
-			if (unit_frag < MAX_MZ) {
-				(*index)[unit_frag].push_back(BucketPeak(sid, peak.second));
-				if (peak.first < min_mz) min_mz = peak.first;
+	Spectrum * load_query(char*file) {
+		Spectrum *n = new Spectrum;
+		std::ifstream in(file);
+		std::string line;
+
+		while (std::getline(in, line)) {
+			std::vector<unsigned int> lineData;
+			std::stringstream lineStream(line);
+			unsigned int value;
+			while (lineStream >> value) {
+				lineData.push_back(value);
 			}
+			n->push_back(Peak(lineData[0], lineData[1]));
 		}
-	}
-	printf("min_mz %d\n", min_mz);
-
-	for(MZ mz = 0; mz < MAX_MZ; mz++) {
-		std::sort((*index)[mz].begin(), (*index)[mz].end());
+		return n;
 	}
 
-	return index;
-}
+	std::vector<Spectrum> * load_queries(char*file) {
+		auto n = new std::vector<Spectrum>;
 
-QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries, QueryResults* query_results) {
+		std::ifstream in(file);
+		std::string line;
 
-	//omp_set_dynamic(0);     // Explicitly disable dynamic teams
-	//omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
-#pragma omp parallel for schedule(dynamic, 1)
-	for (int iquery=0; iquery<queries.size(); iquery++) {
-		const Spectrum &query = queries[iquery];
-		QueryResult *m = &((*query_results)[iquery]);
-		{
-//#pragma omp parallel for //schedule(dynamic, 4)
-			for (int i = 0; i < query.size(); i++) {
-				unsigned int mz = query[i].first;
-				for (int j = 0; j < (*index)[mz].size(); j++) {
-					BucketPeak &bucket_peak = (*index)[mz][j];
-					//printf("mz %u, bucket size = %lu, bucketpeak.first %d\n", mz, (*index)[mz].size(), bucket_peak.first);
-					//printf("i = %d, I am Thread %d\n", i, omp_get_thread_num());
+		int spectra_count = 0;
+		in >> spectra_count;
+		for(int i = 0; i < spectra_count; i++) {
+			Spectrum s;
+			int peak_count;
+			in >> peak_count;
+			for (int p = 0; p < peak_count; p++) {
+				MZ mz;
+				Intensity intensity;
+				in >> mz >> intensity;
+				s.push_back(Peak(mz, intensity));
+			}
+			n->push_back(s);
+		}
+		return n;
+	}
 
-//#pragma omp critical
-					(*m)[bucket_peak.first].push_back(Peak(mz, bucket_peak.second));
+	Index * build_index(RawData * data) {
+		Index *index = new Index;
+
+		for(MZ mz = 0; mz < MAX_MZ; mz++) {
+			index->push_back(Bucket());
+		}
+
+		unsigned int unit_frag;
+
+		int min_mz = 20000;
+		for(SID sid = 0; sid < data->size(); sid++) {
+			for(auto & peak: (*data)[sid]) {
+				unit_frag = peak.first/num_buckets;
+				if (unit_frag < MAX_MZ) {
+					(*index)[unit_frag].push_back(BucketPeak(sid, peak.second));
+					if (peak.first < min_mz) min_mz = peak.first;
 				}
 			}
 		}
+		printf("min_mz %d\n", min_mz);
+
+		for(MZ mz = 0; mz < MAX_MZ; mz++) {
+			std::sort((*index)[mz].begin(), (*index)[mz].end());
+		}
+
+		return index;
 	}
 
-	return query_results;
+QueryResults* reconstruct_candidates(Index * index, const std::vector<Spectrum> & queries, QueryResults* query_results) {
+
+		//omp_set_dynamic(0);     // Explicitly disable dynamic teams
+		//omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
+		//omp_set_nested(true);
+		if (likely(queries.size() >= CPU_NUM)) {
+#if PARALLEL_QUERY == 1
+#if TUNE_OMP == 1
+#pragma omp parallel for schedule(dynamic, 1)
+#else
+#pragma omp parallel for 
+#endif
+#endif
+			for (int iquery=0; iquery<queries.size(); iquery++) {
+				const Spectrum *query = &queries[iquery];
+				QueryResult *m = &((*query_results)[iquery]);
+				{
+					for (int i = 0; i < (*query).size(); i++) {
+						unsigned int mz = (*query)[i].first;
+						for (int j = 0; j < (*index)[mz].size(); j++) {
+							BucketPeak &bucket_peak = (*index)[mz][j];
+							//printf("mz %u, bucket size = %lu, bucketpeak.first %d\n", mz, (*index)[mz].size(), bucket_peak.first);
+							//printf("i = %d, I am Thread %d\n", i, omp_get_thread_num());
+
+							//#pragma omp critical
+							(*m)[bucket_peak.first].push_back(Peak(mz, bucket_peak.second));
+						}
+					}
+				}
+			}
+		}
+		else {
+			for (int iquery=0; iquery<queries.size(); iquery++) {
+				const Spectrum *query = &queries[iquery];
+				QueryResult *m = &((*query_results)[iquery]);
+				{
+#if INNER_PARALLEL == 1
+#pragma omp parallel for 
+#endif
+					for (int i = 0; i < (*query).size(); i++) {
+						unsigned int mz = (*query)[i].first;
+						for (int j = 0; j < (*index)[mz].size(); j++) {
+							BucketPeak &bucket_peak = (*index)[mz][j];
+							(*m)[bucket_peak.first].push_back(Peak(mz, bucket_peak.second));
+						}
+					}
+				}
+			}
+		}
+
+
+		return query_results;
 }
 
 QueryResults* init_query_results(unsigned int size)
@@ -318,7 +354,7 @@ int main(int argc, char * argv[])
 
 	bool demo = false;
 	QueryResults *q_res;
-	
+
 	if (std::getenv("DEMO")) {
 		total_spectra = 3;
 		num_peaks = 5;
@@ -328,7 +364,7 @@ int main(int argc, char * argv[])
 	RawData * raw_data = load_raw_data(argv[1], total_spectra, num_peaks);
 	//std::cerr << "raw_data=\n";
 	//dump_raw_data(raw_data);
-	
+
 	std::vector<Spectrum> *queries = load_queries(argv[2]);
 	q_res = init_query_results(queries->size());
 
@@ -349,7 +385,7 @@ int main(int argc, char * argv[])
 	auto index_build_end = std::chrono::high_resolution_clock::now();
 
 	delete raw_data;
-		
+
 	if (demo) {
 		std::cerr << "Index: ";
 		dump_index(index);
